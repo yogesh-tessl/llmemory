@@ -1,6 +1,6 @@
 ---
 name: hybrid-search
-description: Use when building search systems that need both semantic similarity and keyword matching - covers combining vector and BM25 search with Reciprocal Rank Fusion, alpha tuning for search weight control, and optimizing retrieval quality
+description: "Use when building search systems that need both semantic similarity and keyword matching - implements hybrid search pipelines combining vector and BM25 retrieval with Reciprocal Rank Fusion, configures alpha weights for balancing semantic and keyword search scores, and optimizes retrieval quality"
 version: 0.5.0
 ---
 
@@ -506,76 +506,7 @@ Different HNSW settings have measurable performance impacts:
    - You've measured performance with your data
    - You're optimizing for your embedding model
 
-## Search Type Comparison
-
-### Vector Search Only
-
-```python
-# Pure semantic similarity
-results = await memory.search(
-    owner_id="workspace-1",
-    query_text="artificial intelligence",
-    search_type=SearchType.VECTOR,
-    limit=10
-)
-
-# Good for:
-# - "AI" matching "machine learning" (synonym)
-# - "dog" matching "puppy" (semantic)
-# - Cross-lingual search
-#
-# Weak for:
-# - Specific keywords ("PostgreSQL 14.2")
-# - Exact phrases ("return on investment")
-# - Technical terms ("ValueError exception")
-```
-
-### Text Search Only
-
-```python
-# Pure keyword matching
-results = await memory.search(
-    owner_id="workspace-1",
-    query_text="PostgreSQL CONNECTION_LIMIT",
-    search_type=SearchType.TEXT,
-    limit=10
-)
-
-# Good for:
-# - Exact keyword matches
-# - Technical error messages
-# - Code search
-# - Structured data
-#
-# Weak for:
-# - Synonyms ("automobile" vs "car")
-# - Paraphrasing
-# - Conceptual queries
-```
-
-### Hybrid Search (Recommended)
-
-```python
-# Combines both vector and text
-results = await memory.search(
-    owner_id="workspace-1",
-    query_text="reduce server response time",
-    search_type=SearchType.HYBRID,
-    alpha=0.5,
-    limit=10
-)
-
-# Strengths:
-# - Finds semantically similar content ("optimize latency")
-# - Also finds exact keywords ("response time")
-# - Best overall retrieval quality
-# - Robust to different query styles
-#
-# Use cases:
-# - General-purpose search (recommended default)
-# - Unknown query patterns
-# - Mixed keyword + semantic needs
-```
+**See also:** [Search type selection guide](references/search-type-guide.md) for a detailed comparison of vector, text, and hybrid search modes with examples.
 
 ## Practical Examples
 

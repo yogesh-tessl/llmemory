@@ -1,6 +1,6 @@
 ---
 name: multi-query
-description: Use when search queries need better recall through query expansion - generates multiple query variants, retrieves with each, and fuses results using RRF for improved retrieval quality especially with ambiguous or under-specified queries
+description: "Use when search queries need better recall through query expansion - generates multiple query variants, retrieves with each, and fuses results using RRF. Improves search coverage for ambiguous, vague, or under-specified queries by broadening keyword matching and finding more relevant results"
 version: 0.5.0
 ---
 
@@ -208,66 +208,21 @@ results = await memory.search(
 # - Documents with exact phrase "login problems" (quoted variant)
 ```
 
-### Product Documentation Search
+### Validation
+
+After enabling query expansion, verify it improves results:
 
 ```python
-# Technical query benefits from multiple phrasings
-results = await memory.search(
-    owner_id="docs-site",
-    query_text="async function error handling",
-    search_type=SearchType.HYBRID,
-    query_expansion=True,
-    max_query_variants=4,
-    limit=15
+results_expanded = await memory.search(
+    owner_id="workspace-1", query_text="test query",
+    query_expansion=True, limit=10
 )
-
-# Variants use different matching:
-# - "async function error handling" (original)
-# - "async function error handling" (keyword variant - no stopwords here)
-# - "async OR function OR error OR handling" (OR variant)
-# - "\"async function error handling\"" (exact phrase)
-#
-# Balances precision (exact phrase) with recall (OR variant)
-```
-
-### Research & Discovery
-
-```python
-# Exploratory queries need broad coverage
-results = await memory.search(
-    owner_id="research-db",
-    query_text="climate change mitigation",
-    search_type=SearchType.HYBRID,
-    query_expansion=True,
-    max_query_variants=5,
-    limit=25
+results_normal = await memory.search(
+    owner_id="workspace-1", query_text="test query",
+    query_expansion=False, limit=10
 )
-
-# Variants use different matching:
-# - "climate change mitigation" (original)
-# - "climate OR change OR mitigation" (OR variant)
-# - "\"climate change mitigation\"" (exact phrase)
-```
-
-### E-commerce Search
-
-```python
-# Product searches benefit from synonyms and alternatives
-results = await memory.search(
-    owner_id="store-1",
-    query_text="lightweight laptop for travel",
-    search_type=SearchType.HYBRID,
-    query_expansion=True,
-    max_query_variants=3,
-    metadata_filter={"category": "electronics"},
-    limit=20
-)
-
-# Variants use different matching:
-# - "lightweight laptop for travel" (original)
-# - "lightweight laptop travel" (keyword variant - stopwords removed)
-# - "lightweight OR laptop OR travel" (OR variant)
-# - "\"lightweight laptop for travel\"" (exact phrase)
+# Expanded search should return at least as many results
+assert len(results_expanded) >= len(results_normal)
 ```
 
 ## Configuration
@@ -635,108 +590,7 @@ async def search(q: str):
     return results
 ```
 
-## Query Variant Generation Strategies
-
-Multi-query uses **heuristic rules** to generate variants, not LLM-based expansion:
-
-### 1. Keyword Variant (Stopword Removal)
-
-Removes common stopwords to focus on key terms:
-
-```python
-from llmemory.query_expansion import DEFAULT_STOPWORDS
-
-# Stopwords include: a, an, and, are, as, at, be, by, for, from, has,
-# in, is, it, of, on, or, that, the, to, was, were, will, with
-
-# Example:
-# Input:  "how to improve the customer satisfaction"
-# Output: "how improve customer satisfaction"
-#
-# Input:  "best practices for the database"
-# Output: "best practices database"
-```
-
-Enabled by default via `config.search.include_keyword_variant = True`.
-
-### 2. OR Variant (Boolean Expansion)
-
-Creates Boolean OR of all non-stopword terms to maximize recall:
-
-```python
-# Example:
-# Input:  "customer retention strategies"
-# Output: "customer OR retention OR strategies"
-#
-# Input:  "reduce server latency"
-# Output: "reduce OR server OR latency"
-```
-
-Only generated for multi-word queries. Widens recall by matching documents containing ANY of the key terms.
-
-### 3. Quoted Phrase Variant (Exact Match)
-
-Wraps the query in quotes for exact phrase matching:
-
-```python
-# Example:
-# Input:  "machine learning deployment"
-# Output: "\"machine learning deployment\""
-#
-# Input:  "error handling"
-# Output: "\"error handling\""
-```
-
-Only generated for multi-word queries. Ensures high precision by requiring exact phrase match.
-
-### Complete Example
-
-```python
-from llmemory.query_expansion import QueryExpansionService
-from llmemory.config import SearchConfig
-
-service = QueryExpansionService(SearchConfig())
-
-# With stopwords
-variants = service._heuristic_variants(
-    "how to improve the customer satisfaction",
-    include_keywords=True
-)
-# Returns:
-# 1. "how improve customer satisfaction" (keyword variant)
-# 2. "how OR improve OR customer OR satisfaction" (OR variant)
-# 3. "\"how to improve the customer satisfaction\"" (quoted phrase)
-
-# Without stopwords
-variants = service._heuristic_variants(
-    "machine learning deployment",
-    include_keywords=True
-)
-# Returns:
-# 1. "machine OR learning OR deployment" (OR variant, no keyword variant since no stopwords)
-# 2. "\"machine learning deployment\"" (quoted phrase)
-```
-
-### Advanced: Custom LLM-Based Expansion
-
-The default implementation uses heuristics, but you can provide a custom LLM callback:
-
-```python
-from llmemory.query_expansion import QueryExpansionService, ExpansionCallback
-
-async def my_llm_expander(query: str, max_variants: int) -> list[str]:
-    """Custom LLM-based query expansion."""
-    # Call your LLM here to generate semantic variants
-    variants = await my_llm.generate_variants(query, max_variants)
-    return variants
-
-service = QueryExpansionService(
-    search_config=config.search,
-    llm_callback=my_llm_expander  # Optional custom expansion
-)
-```
-
-When `llm_callback` is provided, it's tried first; heuristics are used as fallback if LLM fails.
+**See also:** [Variant generation strategies](references/variant-strategies.md) for details on keyword, OR, quoted phrase, and custom LLM-based query variant generation.
 
 ## Advanced Patterns
 
